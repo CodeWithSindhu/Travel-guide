@@ -12,6 +12,15 @@ A modern, responsive, and dynamic Travel Guide application built with React, vit
 -   **Modern UI**: Premium aesthetic with smooth animations, glassmorphism, and dark mode support.
 -   **Data Driven**: Centralized data management for countries, cities, and attractions.
 
+## APIs Used
+
+This project relies on several external APIs to provide dynamic content:
+
+-   **[REST Countries API](https://restcountries.com/)**: Fetches comprehensive data for countries (population, capital, region, flags, etc.).
+-   **[Unsplash API](https://unsplash.com/developers)**: distinct, high-quality images for countries, cities, and attractions dynamically.
+-   **[OpenStreetMap (Nominatim)](https://nominatim.org/)**: Provides geocoding services and location coordinates to place cities and landmarks on the map.
+-   **[GeoDB Cities API](https://rapidapi.com/wirefreethought/api/geodb-cities)** (via RapidAPI): Powers the global city search functionality with population data and reliable filtering.
+
 ## Tech Stack
 
 -   **Framework**: [React 19](https://react.dev/)
