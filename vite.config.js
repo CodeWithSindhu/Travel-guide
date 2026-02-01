@@ -3,6 +3,6 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  base: "/Travel-guide/",
+  base: "/travel-guide/",
   plugins: [react(), tailwindcss()],
 });
