@@ -129,7 +129,8 @@ const Country = () => {
      );
   }
 
-  if (loading) {
+  // Only show full page loading spinner if we have NO data to show at all
+  if (loading && !staticData && !apiData) {
     return (
        <div className="flex-grow flex items-center justify-center bg-white">
          <div className="animate-pulse flex flex-col items-center">

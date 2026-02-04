@@ -13,6 +13,22 @@ export const getUnsplashImage = async (query, orientation = 'landscape') => {
     return null;
   }
 
+  const cacheKey = `unsplash_${query}_${orientation}`;
+  const cachedData = localStorage.getItem(cacheKey);
+
+  if (cachedData) {
+    try {
+      const { url, timestamp } = JSON.parse(cachedData);
+      // Cache validity: 24 hours (1000 * 60 * 60 * 24)
+      if (Date.now() - timestamp < 86400000) {
+        return url;
+      }
+    } catch (e) {
+      console.warn("Error parsing cached image data", e);
+      localStorage.removeItem(cacheKey);
+    }
+  }
+
   try {
     const response = await fetch(
       `${BASE_URL}/search/photos?query=${encodeURIComponent(query)}&per_page=1&orientation=${orientation}`,
@@ -29,15 +45,27 @@ export const getUnsplashImage = async (query, orientation = 'landscape') => {
 
     const data = await response.json();
     if (data.results && data.results.length > 0) {
-      return data.results[0].urls.regular;
+      const imageUrl = data.results[0].urls.regular;
+
+      // Save to cache
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify({
+          url: imageUrl,
+          timestamp: Date.now()
+        }));
+      } catch (e) {
+        console.warn("Failed to save to localStorage (likely quota exceeded)", e);
+      }
+
+      return imageUrl;
     }
-    
+
     return null;
   } catch (error) {
     if (error.message.includes("403")) {
-        console.warn("Unsplash rate limit hit. Switching to fallback images.");
+      console.warn("Unsplash rate limit hit. Switching to fallback images.");
     } else {
-        console.error("Error fetching Unsplash image:", error);
+      console.error("Error fetching Unsplash image:", error);
     }
     return null;
   }
@@ -50,22 +78,22 @@ export const getUnsplashImage = async (query, orientation = 'landscape') => {
  * @returns {Promise<Array<string>>} - Array of image URLs.
  */
 export const getUnsplashImages = async (query, count = 5) => {
-    if (!ACCESS_KEY) return [];
+  if (!ACCESS_KEY) return [];
 
-    try {
-        const response = await fetch(
-            `${BASE_URL}/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
-            {
-                headers: { Authorization: `Client-ID ${ACCESS_KEY}` }
-            }
-        );
+  try {
+    const response = await fetch(
+      `${BASE_URL}/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: { Authorization: `Client-ID ${ACCESS_KEY}` }
+      }
+    );
 
-        if (!response.ok) throw new Error(response.statusText);
+    if (!response.ok) throw new Error(response.statusText);
 
-        const data = await response.json();
-        return data.results ? data.results.map(img => img.urls.regular) : [];
-    } catch (error) {
-        console.error("Error fetching Unsplash images:", error);
-        return [];
-    }
+    const data = await response.json();
+    return data.results ? data.results.map(img => img.urls.regular) : [];
+  } catch (error) {
+    console.error("Error fetching Unsplash images:", error);
+    return [];
+  }
 };

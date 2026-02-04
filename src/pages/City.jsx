@@ -30,9 +30,7 @@ const City = () => {
 
   useEffect(() => {
     const loadCityData = async () => {
-      setLoading(true);
-      
-      // Initial Data Structure (with Fallback Images)
+      // 0. Prepare Initial Data immediately
       const initialData = {
           name: displayName,
           identity: `The heartbeat of ${countryName || "the region"}`,
@@ -65,67 +63,62 @@ const City = () => {
           ]
       };
 
-        try {
-        // 1. Fetch Main City Image
-        const mainImage = await getUnsplashImage(`${city} city landmark`);
-        
-        // 1b. Fetch City Coordinates for Map
-        const coords = await getCityCoordinates(city);
-        if (coords) {
-            setMapCenter([coords.lat, coords.lon]);
-        }
+      // 1. Render immediately with fallback data
+      setCityInfo(initialData);
+      setLoading(false);
 
-        // 2. Fetch Dynamic Places (with fallback to static list if empty)
-        let dynamicPlaces = await fetchPlacesForCity(city);
+      try {
+        // 2. Background Fetch: Main Image & Coordinates
+        getUnsplashImage(`${city} city landmark`).then(img => {
+            if (img) {
+                setCityInfo(prev => ({ ...prev, image: img }));
+            }
+        });
         
-        // If API fails or returns nothing, use the initialData.places and fetch images for them
-        if (!dynamicPlaces || dynamicPlaces.length === 0) {
-            console.log("No dynamic places found, using fallback list.");
-            const placesPromises = initialData.places.map(async (place) => {
-                 const img = await getUnsplashImage(`${city} ${place.query}`);
-                 return { 
-                     ...place, 
-                     image: img || `https://loremflickr.com/800/600/${city},${place.query.replace(' ', ',')}` 
-                 };
-            });
-            dynamicPlaces = await Promise.all(placesPromises);
-        }
-
-        // 3. Fetch Interests Images (Parallel)
-        const interestsPromises = initialData.interests.map(async (interest) => {
-             const img = await getUnsplashImage(`${city} ${interest.query}`);
-             return { 
-                 ...interest, 
-                 image: img || `https://loremflickr.com/600x800/${city},${interest.query.replace(' ', ',')}` 
-             };
+        getCityCoordinates(city).then(coords => {
+            if (coords) {
+                setMapCenter([coords.lat, coords.lon]);
+            }
         });
 
-        const resolvedInterests = await Promise.all(interestsPromises);
+        // 3. Background Fetch: Places (Dynamic or Fallback enrichment)
+        fetchPlacesForCity(city).then(async (dynamicPlaces) => {
+             let placesToUse = dynamicPlaces;
+             
+             // If no dynamic places, use initialData.places but fetch images for them
+             if (!dynamicPlaces || dynamicPlaces.length === 0) {
+                // We initially stick with what we have (fallbacks), but we can try to improve them
+                const improvedPlacesPromises = initialData.places.map(async (place) => {
+                     const img = await getUnsplashImage(`${city} ${place.query}`);
+                     return img ? { ...place, image: img } : place; // Override only if we get a better image
+                });
+                placesToUse = await Promise.all(improvedPlacesPromises);
+             } 
+             
+             setCityInfo(prev => ({ ...prev, places: placesToUse }));
+        });
 
-        setCityInfo({
-            ...initialData,
-            image: mainImage || initialData.image,
-            places: dynamicPlaces,
-            interests: resolvedInterests
+        // 4. Background Fetch: Interests Images
+        const interestsPromises = initialData.interests.map(async (interest) => {
+             const img = await getUnsplashImage(`${city} ${interest.query}`);
+             return img ? { ...interest, image: img } : interest;
+        });
+
+        Promise.all(interestsPromises).then(resolvedInterests => {
+             setCityInfo(prev => ({ ...prev, interests: resolvedInterests }));
         });
 
       } catch (error) {
-        console.error("Error fetching city images:", error);
-        // On error, we still define cityInfo with initialData (which uses LoremFlickr fallbacks)
-        // Note: In a real app, we might want to ensure 'places' and 'interests' have image properties even on error.
-        // For simplicity here, we'll assign fallbacks if the above fails completely, 
-        // but normally Promise.all rejection handling is needed.
-        // However, getUnsplashImage swallows errors and returns null, so we shouldn't crash here.
-      } finally {
-        setLoading(false);
+        console.error("Error updating city data in background:", error);
       }
     };
     
     const loadNearbyCities = async () => {
          // Fetch nearby cities in parallel (dynamic)
          try {
-             const nearby = await fetchCitiesNearCity(city);
-             setNearbyCities(nearby);
+             fetchCitiesNearCity(city).then(nearby => {
+                 setNearbyCities(nearby);
+             });
          } catch (e) {
              console.warn("Could not fetch nearby cities", e);
          }
